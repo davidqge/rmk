@@ -6,21 +6,33 @@
 #[macro_use]
 mod macros;
 mod keymap;
+mod st7789;
 mod vial;
 
-use crate::keymap::{COL, NUM_LAYER, ROW};
+use core::cell::RefCell;
+
+use crate::{
+    keymap::{COL, NUM_LAYER, ROW},
+    st7789::ST7789,
+};
 use defmt::*;
 use defmt_rtt as _;
+use embassy_embedded_hal::shared_bus::blocking::spi::SpiDevice;
 use embassy_executor::Spawner;
+use embassy_stm32::peripherals::DMA1_CH3;
+use embassy_stm32::peripherals::DMA1_CH4;
+use embassy_stm32::peripherals::SPI3;
 use embassy_stm32::{
     bind_interrupts,
     flash::{Blocking, Flash},
-    gpio::{AnyPin, Input, Output},
+    gpio::{AnyPin, Input, Level, Output, Speed},
     peripherals::USB_OTG_HS,
-    time::Hertz,
+    spi::{self, Spi},
+    time::{mhz, Hertz},
     usb_otg::{Driver, InterruptHandler},
     Config,
 };
+use embassy_sync::blocking_mutex::{raw::NoopRawMutex, NoopMutex};
 use panic_probe as _;
 use rmk::{
     config::{RmkConfig, VialConfig},
@@ -33,6 +45,7 @@ bind_interrupts!(struct Irqs {
     OTG_HS => InterruptHandler<USB_OTG_HS>;
 });
 
+static SPI_BUS: StaticCell<NoopMutex<RefCell<Spi<SPI3, DMA1_CH3, DMA1_CH4>>>> = StaticCell::new();
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
     info!("RMK start!");
@@ -70,6 +83,20 @@ async fn main(_spawner: Spawner) {
 
     // Initialize peripherals
     let p = embassy_stm32::init(config);
+
+    let mut spi_config = spi::Config::default();
+    spi_config.frequency = mhz(1);
+
+    let spi = spi::Spi::new(
+        p.SPI3, p.PB3, p.PB5, p.PB4, p.DMA1_CH3, p.DMA1_CH4, spi_config,
+    );
+    let spi_bus = NoopMutex::new(RefCell::new(spi));
+    let spi_bus = SPI_BUS.init(spi_bus);
+    let cs = Output::new(p.PB15, Level::High, Speed::High);
+    let spi_device = SpiDevice::new(spi_bus, cs);
+
+    let dc = Output::new(p.PB14, Level::High, Speed::High);
+    let st7789 = ST7789::<_, _, 320, 172, 0, 0>::new(spi_device, dc);
 
     // Usb config
     static EP_OUT_BUFFER: StaticCell<[u8; 1024]> = StaticCell::new();

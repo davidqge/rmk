@@ -31,6 +31,10 @@ static_cell = "2"
 defmt = "0.3"
 defmt-rtt = "0.4"
 panic-probe = { version = "0.3", features = ["print-defmt"] }
+embedded-hal = "1.0"
+embassy-embedded-hal = "0.1.0"
+embedded-graphics = "0.8.1"
+embassy-sync = "0.5"
 
 [build-dependencies]
 xz2 = "0.1.7"
