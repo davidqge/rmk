@@ -3,7 +3,7 @@ use embedded_graphics::{
     geometry::{OriginDimensions, Size},
     pixelcolor::{raw::ToBytes as _, Rgb565},
 };
-use embedded_hal::{digital::OutputPin, spi::SpiDevice};
+use embedded_hal::{delay::DelayNs, digital::OutputPin, spi::SpiDevice};
 pub struct ST7789<
     Spi: SpiDevice,
     Output: OutputPin,
@@ -15,6 +15,24 @@ pub struct ST7789<
     spi: Spi,
     dc: Output,
     // _marker: core::marker::PhantomData<(OFFSETX, OFFSETY)>,
+}
+
+///
+/// Display orientation.
+///
+#[repr(u8)]
+#[derive(Copy, Clone)]
+pub enum Orientation {
+    Portrait = 0b0000_0000,         // no inverting
+    Landscape = 0b0110_0000,        // invert column and page/column order
+    PortraitSwapped = 0b1100_0000,  // invert page and column order
+    LandscapeSwapped = 0b1010_0000, // invert page and page/column order
+}
+
+impl Default for Orientation {
+    fn default() -> Self {
+        Self::Portrait
+    }
 }
 
 impl<
@@ -30,7 +48,8 @@ impl<
         Self { spi, dc }
     }
 
-    pub fn init(&mut self) {
+    pub fn init(&mut self, delay_source: &mut impl DelayNs) {
+        delay_source.delay_us(10_000);
         // self.hard_reset(delay_source)?;
         // if let Some(bl) = self.bl.as_mut() {
         //     bl.set_low().map_err(Error::Pin)?;
@@ -39,21 +58,37 @@ impl<
         // }
 
         self.send_command(Instruction::SWRESET); // reset display
-                                                 // delay_source.delay_us(150_000);
+        delay_source.delay_us(150_000);
         self.send_command(Instruction::SLPOUT); // turn off sleep
-                                                // delay_source.delay_us(10_000);
+        delay_source.delay_us(10_000);
         self.send_command(Instruction::INVOFF); // turn off invert
         self.send_command_data(Instruction::VSCRDER, &[0u8, 0u8, 0x14u8, 0u8, 0u8, 0u8]); // vertical scroll definition
-                                                                                          // self.write_data(); // 0 TSA, 320 VSA, 0 BSA
-        self.send_command_data(Instruction::MADCTL, &[0b0000_0000]); // left -> right, bottom -> top RGB
+        self.send_command_data(Instruction::MADCTL, &[Orientation::Landscape as u8]); // left -> right, bottom -> top RGB
         self.send_command_data(Instruction::COLMOD, &[0b0101_0101]); // 16bit 65k colors
         self.send_command(Instruction::INVON); // hack?
-                                               // delay_source.delay_us(10_000);
+        delay_source.delay_us(10_000);
         self.send_command(Instruction::NORON); // turn on display
-                                               // delay_source.delay_us(10_000);
+        delay_source.delay_us(10_000);
         self.send_command(Instruction::DISPON); // turn on display
-                                                // delay_source.delay_us(10_000);
+        delay_source.delay_us(10_000);
     }
+
+    // ///
+    // /// Returns currently set orientation
+    // ///
+    // pub fn orientation(&self) -> Orientation {
+    //     self.orientation
+    // }
+
+    // ///
+    // /// Sets display orientation
+    // ///
+    // pub fn set_orientation(&mut self, orientation: Orientation) -> Result<(), Error<PinE>> {
+    //     self.write_command(Instruction::MADCTL)?;
+    //     self.write_data(&[orientation as u8])?;
+    //     self.orientation = orientation;
+    //     Ok(())
+    // }
 
     #[inline]
     fn set_update_window(&mut self, x: u16, y: u16, w: u16, h: u16) {
