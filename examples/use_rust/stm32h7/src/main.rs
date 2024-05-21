@@ -103,19 +103,16 @@ async fn main(_spawner: Spawner) {
 
     let mut spi_config = spi::Config::default();
     spi_config.frequency = mhz(64);
-
     let spi = spi::Spi::new_txonly(p.SPI3, p.PB3, p.PB5, p.DMA1_CH3, NoDma, spi_config);
-    let spi_bus = NoopMutex::new(RefCell::new(spi));
-    let spi_bus = SPI_BUS.init(spi_bus);
+    let spi_bus = SPI_BUS.init(NoopMutex::new(RefCell::new(spi)));
     let cs = Output::new(p.PB9, Level::High, Speed::VeryHigh);
     let spi_device = SpiDevice::new(spi_bus, cs);
-
     let dc = Output::new(p.PB7, Level::High, Speed::VeryHigh);
     let mut display = ST7789::<_, _, 320, 172, 0, 34>::new(spi_device, dc);
+
     display.init(&mut Delay);
     display.clear(Rgb565::BLACK).unwrap();
     let raw_image_data = ImageRawLE::new(include_bytes!("./assets/ferris.raw"), 86);
-    info!("{},{}", raw_image_data.size().width, raw_image_data.size().height);
     let style = MonoTextStyle::new(&FONT_10X20, Rgb565::WHITE);
     let mut led = Output::new(p.PE3, Level::High, Speed::High);
     Text::new("Hello embedded_graphics!", Point::new(19, 150), style)
@@ -126,7 +123,10 @@ async fn main(_spawner: Spawner) {
     loop {
         // led.toggle();
         let mut clear = Rectangle::new(
-            Point { x: ferris.bounding_box().top_left.x, y: 40 },
+            Point {
+                x: ferris.bounding_box().top_left.x,
+                y: 40,
+            },
             Size {
                 width: diff as u32,
                 height: 64,
@@ -138,10 +138,9 @@ async fn main(_spawner: Spawner) {
         } else {
             ferris.translate_mut(Point::new(diff, 0))
         };
-        
+
         f.draw(&mut display).unwrap();
         display.fill_solid(&clear, Rgb565::BLACK).unwrap();
-
     }
 
     // // Usb config
