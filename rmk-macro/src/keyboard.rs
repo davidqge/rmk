@@ -17,6 +17,7 @@ use crate::{
     keyboard_config::{
         expand_keyboard_info, expand_vial_config, get_chip_model, get_communication_type,
     },
+    layout::expand_layout_init,
     light::expand_light_config,
     matrix::expand_matrix_config,
     usb_interrupt_map::{get_usb_info, UsbInfo},
@@ -58,14 +59,23 @@ pub enum Overwritten {
 
 /// Parse keyboard mod and generate a valid RMK main function with all needed code
 pub(crate) fn parse_keyboard_mod(attr: proc_macro::TokenStream, item_mod: ItemMod) -> TokenStream2 {
-    // TODO: Read Cargo.toml, check whether the feature gate in Cargo.toml is consistent with keyboard.toml
-    let _enabled_rmk_features = match Manifest::from_path("Cargo.toml") {
+    let enabled_rmk_features = match Manifest::from_path("Cargo.toml") {
         Ok(manifest) => manifest
             .dependencies
             .iter()
             .find(|(name, _dep)| *name == "rmk")
             .map(|(_name, dep)| dep.req_features().to_vec()),
         Err(_e) => None,
+    };
+
+    // Check whether the async matrix feature is enabled
+    let mut async_matrix = false;
+    if let Some(rmk_features) = enabled_rmk_features {
+        for f in rmk_features {
+            if f == "async_matrix" {
+                async_matrix = true
+            }
+        }
     };
 
     // Read keyboard config file at project root
@@ -78,6 +88,7 @@ pub(crate) fn parse_keyboard_mod(attr: proc_macro::TokenStream, item_mod: ItemMo
                 .into();
         }
     };
+
     // Parse keyboard config file content to `KeyboardTomlConfig`
     let toml_config: KeyboardTomlConfig = match toml::from_str(&s) {
         Ok(c) => c,
@@ -129,6 +140,8 @@ pub(crate) fn parse_keyboard_mod(attr: proc_macro::TokenStream, item_mod: ItemMo
         UsbInfo::new_default(&chip)
     };
 
+    // Create layout info
+    let layout = expand_layout_init(toml_config.layout.clone(), toml_config.matrix.clone());
     // Create keyboard info and vial struct
     let keyboard_info_static_var = expand_keyboard_info(
         toml_config.keyboard.clone(),
@@ -136,6 +149,7 @@ pub(crate) fn parse_keyboard_mod(attr: proc_macro::TokenStream, item_mod: ItemMo
         toml_config.matrix.cols as usize,
         toml_config.matrix.layers as usize,
     );
+    // Create vial config
     let vial_static_var = expand_vial_config();
 
     // If defmt_log is disabled, add an empty defmt logger impl
@@ -168,7 +182,7 @@ pub(crate) fn parse_keyboard_mod(attr: proc_macro::TokenStream, item_mod: ItemMo
     };
 
     // Expanded main function
-    let main_function = expand_main(&chip, comm_type, usb_info, toml_config, item_mod);
+    let main_function = expand_main(&chip, comm_type, usb_info, toml_config, item_mod, async_matrix);
 
     quote! {
         use defmt::*;
@@ -176,6 +190,7 @@ pub(crate) fn parse_keyboard_mod(attr: proc_macro::TokenStream, item_mod: ItemMo
 
         #keyboard_info_static_var
         #vial_static_var
+        #layout
 
         #main_function
     }
@@ -187,6 +202,7 @@ fn expand_main(
     usb_info: UsbInfo,
     toml_config: KeyboardTomlConfig,
     item_mod: ItemMod,
+    async_matrix: bool,
 ) -> TokenStream2 {
     // Expand components of main function
     let imports = expand_imports(&item_mod);
@@ -195,8 +211,8 @@ fn expand_main(
     let usb_init = expand_usb_init(&chip, &usb_info, comm_type, &item_mod);
     let flash_init = expand_flash_init(&chip, comm_type, toml_config.storage);
     let light_config = expand_light_config(&chip, toml_config.light);
-    let matrix_config = expand_matrix_config(&chip, toml_config.matrix);
-    let run_rmk = expand_rmk_entry(&chip, &usb_info, comm_type, &item_mod);
+    let matrix_config = expand_matrix_config(&chip, toml_config.matrix, async_matrix);
+    let run_rmk = expand_rmk_entry(&chip, &usb_info, comm_type, &item_mod, async_matrix);
     let (ble_config, set_ble_config) = expand_ble_config(&chip, comm_type, toml_config.ble);
 
     let main_function_sig = if chip.series == ChipSeries::Esp32 {
@@ -224,7 +240,6 @@ fn expand_main(
             // Initialize usb driver as `driver`
             #usb_init
 
-            // FIXME: if storage is enabled
             // Initialize flash driver as `flash` and storage config as `storage_config`
             #flash_init
 

@@ -45,13 +45,13 @@ pub(crate) fn bind_interrupt_default(
     usb_info: &UsbInfo,
     toml_config: &KeyboardTomlConfig,
 ) -> TokenStream2 {
-    if !chip.has_usb() {
-        return quote! {};
-    }
     let interrupt_name = format_ident!("{}", usb_info.interrupt_name);
     let peripheral_name = format_ident!("{}", usb_info.peripheral_name);
     match chip.series {
         crate::ChipSeries::Stm32 => {
+            if !chip.has_usb() {
+                return quote! {};
+            }
             let usb_mod_name = if usb_info.peripheral_name.contains("OTG") {
                 format_ident!("{}", "usb_otg")
             } else {
@@ -69,6 +69,7 @@ pub(crate) fn bind_interrupt_default(
                 enabled: true,
                 battery_adc_pin: Some(_adc_pin),
                 charge_state: _,
+                charge_led: _,
             }) = &toml_config.ble
             {
                 Some(quote! {
@@ -77,17 +78,20 @@ pub(crate) fn bind_interrupt_default(
             } else {
                 None
             };
-            if chip.has_usb() {
+            let interrupt_binding = if chip.has_usb() {
                 quote! {
-                    use ::embassy_nrf::bind_interrupts;
-                    bind_interrupts!(struct Irqs {
-                        #interrupt_name => ::embassy_nrf::usb::InterruptHandler<::embassy_nrf::peripherals::#peripheral_name>;
-                        #saadc_interrupt
-                        POWER_CLOCK => ::embassy_nrf::usb::vbus_detect::InterruptHandler;
-                    });
+                    #interrupt_name => ::embassy_nrf::usb::InterruptHandler<::embassy_nrf::peripherals::#peripheral_name>;
+                    #saadc_interrupt
+                    POWER_CLOCK => ::embassy_nrf::usb::vbus_detect::InterruptHandler;
                 }
             } else {
-                quote! {}
+                quote! { #saadc_interrupt }
+            };
+            quote! {
+                use ::embassy_nrf::bind_interrupts;
+                bind_interrupts!(struct Irqs {
+                #interrupt_binding
+                });
             }
         }
         crate::ChipSeries::Rp2040 => {

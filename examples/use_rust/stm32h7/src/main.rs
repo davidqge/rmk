@@ -52,7 +52,7 @@ use embedded_graphics::{primitives::Rectangle, Drawable};
 use panic_probe as _;
 use rmk::{
     config::{RmkConfig, VialConfig},
-    initialize_keyboard_with_config_and_run,
+    initialize_keyboard_and_run,
 };
 use static_cell::StaticCell;
 use tinytga::Tga;
@@ -171,6 +171,25 @@ async fn main(_spawner: Spawner) {
 
     // // Start serving
     // initialize_keyboard_with_config_and_run::<
+    //     Flash<'_, Blocking>,
+    //     Driver<'_, USB_OTG_HS>,
+    //     Input<'_, AnyPin>,
+    //     Output<'_, AnyPin>,
+    //     ROW,
+    //     COL,
+    //     NUM_LAYER,
+    // >(
+    //     driver,
+    //     input_pins,
+    //     output_pins,
+    //     Some(f),
+    //     crate::keymap::KEYMAP,
+    //     keyboard_config,
+    // )
+    // .await;
+}
+    // // Start serving
+    // initialize_keyboard_and_run::<
     //     Flash<'_, Blocking>,
     //     Driver<'_, USB_OTG_HS>,
     //     Input<'_, AnyPin>,

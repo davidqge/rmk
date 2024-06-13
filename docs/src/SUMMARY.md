@@ -12,7 +12,8 @@
     - [Use `keyboard.toml`](config_rmk_project_toml.md)
     - [Use Rust](config_rmk_project_rust.md)
 - [4. Compile and flash!](compile_and_flash.md)
-
+- [FAQs](faq.md)
+- [Real world examples](real_world_examples.md)
 
 # Features
 - [Keyboard Configuration](configuration.md)
@@ -20,10 +21,9 @@
 - [Vial support](vial.md)
 - [Wireless](wireless.md)
 - [Storage](storage.md)
-- [Layers]()
-- [Tap hold]()
+- [Low-power](low_power.md)
 - [Binary size optimization](binary_size.md)
 
 # Development
 - [Roadmap](roadmap.md)
-- [For Developers]()
+- [Contributing](contributing.md)

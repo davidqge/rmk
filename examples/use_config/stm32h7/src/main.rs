@@ -5,7 +5,6 @@
 mod keymap;
 mod vial;
 
-use crate::keymap::KEYMAP;
 use rmk::macros::rmk_keyboard;
 use vial::{VIAL_KEYBOARD_DEF, VIAL_KEYBOARD_ID};
 
@@ -13,14 +12,15 @@ use vial::{VIAL_KEYBOARD_DEF, VIAL_KEYBOARD_ID};
 #[rmk_keyboard]
 mod my_keyboard {
     use embassy_stm32::{
+        exti::ExtiInput,
         flash::{Blocking, Flash},
-        gpio::{AnyPin, Input, Output},
+        gpio::{AnyPin, Output},
         peripherals::USB_OTG_HS,
         time::Hertz,
         usb_otg::Driver,
         Config,
     };
-    use rmk::initialize_keyboard_with_config_and_run;
+    use rmk::initialize_keyboard_and_run;
     use static_cell::StaticCell;
 
     // If you want customize interrupte binding , use `#[Override(bind_interrupt)]` to override default interrupt binding
@@ -88,10 +88,10 @@ mod my_keyboard {
     #[Override(entry)]
     fn run() {
         // Start serving
-        initialize_keyboard_with_config_and_run::<
+        initialize_keyboard_and_run::<
             Flash<'_, Blocking>,
             Driver<'_, USB_OTG_HS>,
-            Input<'_, AnyPin>,
+            ExtiInput<AnyPin>,
             Output<'_, AnyPin>,
             ROW,
             COL,
