@@ -1432,7 +1432,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rmk-esp32c3"
+name = "rmk-esp32c6"
 version = "0.2.0"
 dependencies = [
  "const-gen",

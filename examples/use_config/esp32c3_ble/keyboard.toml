@@ -3,7 +3,7 @@ product_name = "RMK Keyboard"
 vendor_id = 0x4c4b
 product_id = 0x4643
 manufacturer = "haobo"
-chip = "esp32c3"
+chip = "esp32c6"
 usb_enable = false
 
 [matrix]
