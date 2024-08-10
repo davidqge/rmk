@@ -7,12 +7,12 @@ chip = "esp32c6"
 usb_enable = false
 
 [matrix]
-rows = 4
-cols = 3
-layers = 2
+rows = 8
+cols = 12
+layers = 4
 # Input and output pins are mandatory
-input_pins = ["gpio6", "gpio7", "gpio20", "gpio21"]
-output_pins = ["gpio3", "gpio4", "gpio5"]
+input_pins = ["gpio0", "gpio1", "gpio2", "gpio3", "gpio4", "gpio5", "gpio6", "gpio7"]
+output_pins = ["gpio8", "gpio10", "gpio11", "gpio15", "gpio16", "gpio17", "gpio18", "gpio19", "gpio20", "gpio21", "gpio22", "gpio23"]
 
 # WARNING: Currently row2col/col2row is set in RMK's feature gate, configs here do nothing actually
 # row2col = true
